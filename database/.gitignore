@@ -1,10 +1,1 @@
 *.sqlite*
-
-#env file 
-.env
-
-# Ignore entire DDEV config
-.ddev/
-
-# Ignore entire DDEV config
-.ddev
