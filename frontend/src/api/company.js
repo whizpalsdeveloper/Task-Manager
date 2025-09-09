@@ -25,3 +25,24 @@ export async function getCompanyUsers() {
   const { data } = await api.get("/company/users");
   return data;
 }
+
+// User management
+export async function getCompanyUserList() {
+  const { data } = await api.get("/company/users");
+  return data;
+}
+
+export async function createCompanyUser(userData) {
+  const { data } = await api.post("/company/users", userData);
+  return data;
+}
+
+export async function updateCompanyUser(id, userData) {
+  const { data } = await api.put(`/company/users/${id}`, userData);
+  return data;
+}
+
+export async function deleteCompanyUser(id) {
+  const { data } = await api.delete(`/company/users/${id}`);
+  return data;
+}

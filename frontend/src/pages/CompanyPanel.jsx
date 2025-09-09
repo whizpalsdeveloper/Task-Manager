@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getCompanyTasks, createCompanyTask, updateCompanyTask, deleteCompanyTask, getCompanyUsers } from "../api/company";
+import { getCompanyTasks, createCompanyTask, updateCompanyTask, deleteCompanyTask, getCompanyUsers, getCompanyUserList, createCompanyUser, updateCompanyUser, deleteCompanyUser } from "../api/company";
 import { logout } from "../api/auth";
 
 export default function CompanyPanel() {
@@ -7,16 +7,25 @@ export default function CompanyPanel() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showUserModal, setShowUserModal] = useState(false);
   const [modalMode, setModalMode] = useState("create");
+  const [userModalMode, setUserModalMode] = useState("create");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedTask, setSelectedTask] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [activeTab, setActiveTab] = useState("tasks");
   const [form, setForm] = useState({
     title: "",
     description: "",
     assigned_to: "",
     priority: "medium",
     due_date: "",
+  });
+  const [userForm, setUserForm] = useState({
+    name: "",
+    email: "",
+    password: "",
   });
 
   useEffect(() => {
@@ -28,10 +37,10 @@ export default function CompanyPanel() {
       setLoading(true);
       const [tasksData, usersData] = await Promise.all([
         getCompanyTasks(),
-        getCompanyUsers(),
+        getCompanyUserList(),
       ]);
       setTasks(Array.isArray(tasksData?.data) ? tasksData.data : []);
-      setUsers(Array.isArray(usersData?.data) ? usersData.data : []);
+      setUsers(Array.isArray(usersData) ? usersData : []);
     } catch (err) {
       console.error("Error fetching data:", err);
     } finally {
@@ -57,6 +66,24 @@ export default function CompanyPanel() {
       due_date: task.due_date ? task.due_date.split("T")[0] : "",
     });
     setShowModal(true);
+  }
+
+  function openCreateUserModal() {
+    setUserModalMode("create");
+    setSelectedUser(null);
+    setUserForm({ name: "", email: "", password: "" });
+    setShowUserModal(true);
+  }
+
+  function openEditUserModal(user) {
+    setUserModalMode("edit");
+    setSelectedUser(user);
+    setUserForm({
+      name: user.name,
+      email: user.email,
+      password: "",
+    });
+    setShowUserModal(true);
   }
 
   async function handleSubmit(e) {
@@ -88,6 +115,35 @@ export default function CompanyPanel() {
     }
   }
 
+  async function handleUserSubmit(e) {
+    e.preventDefault();
+    try {
+      if (userModalMode === "create") {
+        await createCompanyUser(userForm);
+      } else if (selectedUser) {
+        await updateCompanyUser(selectedUser.id, userForm);
+      }
+      setShowUserModal(false);
+      await fetchData();
+      alert(userModalMode === "create" ? "User created successfully!" : "User updated successfully!");
+    } catch (err) {
+      console.error("Error saving user:", err);
+      alert("Error saving user. Please try again.");
+    }
+  }
+
+  async function handleUserDelete(id) {
+    if (!window.confirm("Are you sure you want to delete this user?")) return;
+    try {
+      await deleteCompanyUser(id);
+      await fetchData();
+      alert("User deleted successfully!");
+    } catch (err) {
+      console.error("Error deleting user:", err);
+      alert("Error deleting user. Please try again.");
+    }
+  }
+
   const filteredTasks = tasks.filter((task) => {
     const matchesSearch =
       task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -113,7 +169,12 @@ export default function CompanyPanel() {
           <div className="nav">
             <h1>Company Dashboard</h1>
             <div className="nav-buttons">
-              <button onClick={openCreateModal} className="btn btn-primary">New Task</button>
+              {activeTab === "tasks" && (
+                <button onClick={openCreateModal} className="btn btn-primary">New Task</button>
+              )}
+              {activeTab === "users" && (
+                <button onClick={openCreateUserModal} className="btn btn-primary">Add User</button>
+              )}
               <button onClick={logout} className="btn btn-danger">Logout</button>
             </div>
           </div>
@@ -121,57 +182,141 @@ export default function CompanyPanel() {
       </div>
 
       <div className="container">
+        {/* Tabs */}
+        <div className="card" style={{ marginBottom: '20px' }}>
+          <div style={{ display: 'flex', borderBottom: '1px solid #eee' }}>
+            <button
+              onClick={() => setActiveTab("tasks")}
+              className={`btn ${activeTab === "tasks" ? "btn-primary" : "btn-secondary"}`}
+              style={{ 
+                border: 'none', 
+                borderRadius: '0', 
+                borderBottom: activeTab === "tasks" ? '2px solid #007bff' : '2px solid transparent',
+                marginRight: '10px'
+              }}
+            >
+              Tasks
+            </button>
+            <button
+              onClick={() => setActiveTab("users")}
+              className={`btn ${activeTab === "users" ? "btn-primary" : "btn-secondary"}`}
+              style={{ 
+                border: 'none', 
+                borderRadius: '0', 
+                borderBottom: activeTab === "users" ? '2px solid #007bff' : '2px solid transparent'
+              }}
+            >
+              Users
+            </button>
+          </div>
+        </div>
+
         {/* Stats */}
         <div className="row" style={{ marginBottom: '30px' }}>
-          <div className="col-3"><div className="card" style={{ textAlign: 'center' }}><h3 style={{ margin: '0 0 10px 0', color:'#007bff' }}>{tasks.length}</h3><p style={{ margin:0, color:'#666' }}>Total Tasks</p></div></div>
-          <div className="col-3"><div className="card" style={{ textAlign: 'center' }}><h3 style={{ margin: '0 0 10px 0', color:'#ffc107' }}>{tasks.filter(t=>t.status==='pending').length}</h3><p style={{ margin:0, color:'#666' }}>Pending</p></div></div>
-          <div className="col-3"><div className="card" style={{ textAlign: 'center' }}><h3 style={{ margin: '0 0 10px 0', color:'#17a2b8' }}>{tasks.filter(t=>t.status==='in-progress').length}</h3><p style={{ margin:0, color:'#666' }}>In Progress</p></div></div>
-          <div className="col-3"><div className="card" style={{ textAlign: 'center' }}><h3 style={{ margin: '0 0 10px 0', color:'#28a745' }}>{tasks.filter(t=>t.status==='completed').length}</h3><p style={{ margin:0, color:'#666' }}>Completed</p></div></div>
-        </div>
-
-        {/* Search & Filter */}
-        <div className="card">
-          <div style={{ display:'flex', gap:'15px', marginBottom:'20px', flexWrap:'wrap' }}>
-            <input type="text" placeholder="Search tasks..." value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} className="form-control" style={{ flex:1, minWidth:'200px' }} />
-            <select value={statusFilter} onChange={(e)=>setStatusFilter(e.target.value)} className="form-control" style={{ minWidth:'150px' }}>
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="in-progress">In Progress</option>
-              <option value="completed">Completed</option>
-            </select>
-          </div>
-
-          {filteredTasks.length === 0 ? (
-            <div style={{ textAlign:'center', padding:'30px', color:'#666' }}>
-              {searchTerm || statusFilter !== 'all' ? 'No tasks found. Try adjusting your search or filter.' : 'No tasks yet. Click "New Task" to create one.'}
-            </div>
+          {activeTab === "tasks" ? (
+            <>
+              <div className="col-3"><div className="card" style={{ textAlign: 'center' }}><h3 style={{ margin: '0 0 10px 0', color:'#007bff' }}>{tasks.length}</h3><p style={{ margin:0, color:'#666' }}>Total Tasks</p></div></div>
+              <div className="col-3"><div className="card" style={{ textAlign: 'center' }}><h3 style={{ margin: '0 0 10px 0', color:'#ffc107' }}>{tasks.filter(t=>t.status==='pending').length}</h3><p style={{ margin:0, color:'#666' }}>Pending</p></div></div>
+              <div className="col-3"><div className="card" style={{ textAlign: 'center' }}><h3 style={{ margin: '0 0 10px 0', color:'#17a2b8' }}>{tasks.filter(t=>t.status==='in-progress').length}</h3><p style={{ margin:0, color:'#666' }}>In Progress</p></div></div>
+              <div className="col-3"><div className="card" style={{ textAlign: 'center' }}><h3 style={{ margin: '0 0 10px 0', color:'#28a745' }}>{tasks.filter(t=>t.status==='completed').length}</h3><p style={{ margin:0, color:'#666' }}>Completed</p></div></div>
+            </>
           ) : (
-            <div className="row">
-              {filteredTasks.map((task) => (
-                <div key={task.id} className="col-4">
-                  <div className="card" style={{ height:'100%' }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'10px' }}>
-                      <div className="flex-1 min-w-0">
-                        <h3 style={{ margin:0 }} className="truncate">{task.title}</h3>
-                        <p style={{ color:'#666', margin:'4px 0 0 0' }} className="truncate">{task.description || 'No description'}</p>
-                      </div>
-                      <div style={{ display:'flex', flexDirection:'column', gap:'4px', marginLeft:'8px' }}>
-                        <span className={`badge ${task.status==='completed'?'badge-success':task.status==='in-progress'?'badge-info':'badge-warning'}`}>{task.status}</span>
-                        <span className={`badge ${task.priority==='high'?'badge-danger':task.priority==='medium'?'badge-warning':'badge-success'}`}>{task.priority}</span>
-                      </div>
-                    </div>
-                    {task.assigned_user?.name && (<div style={{ fontSize:'12px', color:'#666', marginBottom:'8px' }}>Assignee: {task.assigned_user.name}</div>)}
-                    {task.due_date && (<div style={{ fontSize:'12px', color:'#666', marginBottom:'10px' }}>Due: {new Date(task.due_date).toLocaleDateString()}</div>)}
-                    <div style={{ display:'flex', gap:'6px' }}>
-                      <button onClick={() => openEditModal(task)} className="btn btn-primary" style={{ flex:1 }}>Edit</button>
-                      <button onClick={() => handleDelete(task.id)} className="btn btn-danger">Delete</button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <>
+              <div className="col-4"><div className="card" style={{ textAlign: 'center' }}><h3 style={{ margin: '0 0 10px 0', color:'#007bff' }}>{users.length}</h3><p style={{ margin:0, color:'#666' }}>Total Users</p></div></div>
+              <div className="col-4"><div className="card" style={{ textAlign: 'center' }}><h3 style={{ margin: '0 0 10px 0', color:'#28a745' }}>{users.filter(u=>u.created_at).length}</h3><p style={{ margin:0, color:'#666' }}>Active Users</p></div></div>
+              <div className="col-4"><div className="card" style={{ textAlign: 'center' }}><h3 style={{ margin: '0 0 10px 0', color:'#ffc107' }}>{tasks.length}</h3><p style={{ margin:0, color:'#666' }}>Tasks Assigned</p></div></div>
+            </>
           )}
         </div>
+
+        {/* Content based on active tab */}
+        {activeTab === "tasks" ? (
+          /* Tasks Tab */
+          <div className="card">
+            <div style={{ display:'flex', gap:'15px', marginBottom:'20px', flexWrap:'wrap' }}>
+              <input type="text" placeholder="Search tasks..." value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} className="form-control" style={{ flex:1, minWidth:'200px' }} />
+              <select value={statusFilter} onChange={(e)=>setStatusFilter(e.target.value)} className="form-control" style={{ minWidth:'150px' }}>
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="in-progress">In Progress</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+
+            {filteredTasks.length === 0 ? (
+              <div style={{ textAlign:'center', padding:'30px', color:'#666' }}>
+                {searchTerm || statusFilter !== 'all' ? 'No tasks found. Try adjusting your search or filter.' : 'No tasks yet. Click "New Task" to create one.'}
+              </div>
+            ) : (
+              <div className="row">
+                {filteredTasks.map((task) => (
+                  <div key={task.id} className="col-4">
+                    <div className="card" style={{ height:'100%' }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'10px' }}>
+                        <div className="flex-1 min-w-0">
+                          <h3 style={{ margin:0 }} className="truncate">{task.title}</h3>
+                          <p style={{ color:'#666', margin:'4px 0 0 0' }} className="truncate">{task.description || 'No description'}</p>
+                        </div>
+                        <div style={{ display:'flex', flexDirection:'column', gap:'4px', marginLeft:'8px' }}>
+                          <span className={`badge ${task.status==='completed'?'badge-success':task.status==='in-progress'?'badge-info':'badge-warning'}`}>{task.status}</span>
+                          <span className={`badge ${task.priority==='high'?'badge-danger':task.priority==='medium'?'badge-warning':'badge-success'}`}>{task.priority}</span>
+                        </div>
+                      </div>
+                      {task.assigned_user?.name && (<div style={{ fontSize:'12px', color:'#666', marginBottom:'8px' }}>Assignee: {task.assigned_user.name}</div>)}
+                      {task.due_date && (<div style={{ fontSize:'12px', color:'#666', marginBottom:'10px' }}>Due: {new Date(task.due_date).toLocaleDateString()}</div>)}
+                      <div style={{ display:'flex', gap:'6px' }}>
+                        <button onClick={() => openEditModal(task)} className="btn btn-primary" style={{ flex:1 }}>Edit</button>
+                        <button onClick={() => handleDelete(task.id)} className="btn btn-danger">Delete</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Users Tab */
+          <div className="card">
+            <div style={{ display:'flex', gap:'15px', marginBottom:'20px', flexWrap:'wrap' }}>
+              <input type="text" placeholder="Search users..." value={searchTerm} onChange={(e)=>setSearchTerm(e.target.value)} className="form-control" style={{ flex:1, minWidth:'200px' }} />
+            </div>
+
+            {users.filter(user => 
+              user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              user.email.toLowerCase().includes(searchTerm.toLowerCase())
+            ).length === 0 ? (
+              <div style={{ textAlign:'center', padding:'30px', color:'#666' }}>
+                {searchTerm ? 'No users found. Try adjusting your search.' : 'No users yet. Click "Add User" to create one.'}
+              </div>
+            ) : (
+              <div className="row">
+                {users.filter(user => 
+                  user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  user.email.toLowerCase().includes(searchTerm.toLowerCase())
+                ).map((user) => (
+                  <div key={user.id} className="col-4">
+                    <div className="card" style={{ height:'100%' }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'10px' }}>
+                        <div className="flex-1 min-w-0">
+                          <h3 style={{ margin:0 }} className="truncate">{user.name}</h3>
+                          <p style={{ color:'#666', margin:'4px 0 0 0' }} className="truncate">{user.email}</p>
+                        </div>
+                        <span className="badge badge-info">User</span>
+                      </div>
+                      <div style={{ fontSize:'12px', color:'#666', marginBottom:'10px' }}>
+                        Joined: {new Date(user.created_at).toLocaleDateString()}
+                      </div>
+                      <div style={{ display:'flex', gap:'6px' }}>
+                        <button onClick={() => openEditUserModal(user)} className="btn btn-primary" style={{ flex:1 }}>Edit</button>
+                        <button onClick={() => handleUserDelete(user.id)} className="btn btn-danger">Delete</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Task Form Modal */}
         {showModal && (
@@ -226,6 +371,58 @@ export default function CompanyPanel() {
                 <div style={{ display:'flex', justifyContent:'flex-end', gap:'10px' }}>
                   <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
                   <button type="submit" className="btn btn-primary">{modalMode === 'create' ? 'Create Task' : 'Update Task'}</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* User Form Modal */}
+        {showUserModal && (
+          <div className="modal">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h3 className="modal-title">{userModalMode === 'create' ? 'Add New User' : 'Edit User'}</h3>
+                <button className="close" onClick={() => setShowUserModal(false)}>×</button>
+              </div>
+              <form onSubmit={handleUserSubmit}>
+                <div className="row">
+                  <div className="col-12">
+                    <div className="form-group">
+                      <label className="form-label">Full Name *</label>
+                      <input type="text" required value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} className="form-control" placeholder="Enter user's full name" />
+                    </div>
+                  </div>
+                  <div className="col-12">
+                    <div className="form-group">
+                      <label className="form-label">Email Address *</label>
+                      <input type="email" required value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} className="form-control" placeholder="Enter user's email" />
+                    </div>
+                  </div>
+                  <div className="col-12">
+                    <div className="form-group">
+                      <label className="form-label">
+                        Password {userModalMode === 'create' ? '*' : '(leave blank to keep current)'}
+                      </label>
+                      <input 
+                        type="password" 
+                        value={userForm.password} 
+                        onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} 
+                        className="form-control" 
+                        placeholder={userModalMode === 'create' ? 'Enter password (min 8 characters)' : 'Enter new password (leave blank to keep current)'}
+                        required={userModalMode === 'create'}
+                      />
+                      {userModalMode === 'create' && (
+                        <div style={{ marginTop: '5px', fontSize: '12px', color: '#666' }}>
+                          Password must be at least 8 characters long
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display:'flex', justifyContent:'flex-end', gap:'10px' }}>
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowUserModal(false)}>Cancel</button>
+                  <button type="submit" className="btn btn-primary">{userModalMode === 'create' ? 'Create User' : 'Update User'}</button>
                 </div>
               </form>
             </div>

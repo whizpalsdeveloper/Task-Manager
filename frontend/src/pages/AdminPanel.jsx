@@ -18,6 +18,9 @@ export default function AdminPanel() {
     address: "",
     website: "",
     status: "active",
+    admin_name: "",
+    admin_email: "",
+    admin_password: "",
   });
 
   useEffect(() => {
@@ -54,6 +57,9 @@ export default function AdminPanel() {
       address: "",
       website: "",
       status: "active",
+      admin_name: "",
+      admin_email: "",
+      admin_password: "",
     });
     setShowModal(true);
   }
@@ -67,6 +73,9 @@ export default function AdminPanel() {
       address: company.address || "",
       website: company.website || "",
       status: company.status,
+      admin_name: "",
+      admin_email: "",
+      admin_password: "",
     });
     setShowModal(true);
   }
@@ -255,6 +264,35 @@ export default function AdminPanel() {
                   <label className="form-label">Address</label>
                   <textarea rows={3} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="form-control" placeholder="Enter company address" />
                 </div>
+                
+                {/* Company Admin User Section */}
+                {modalMode === 'create' && (
+                  <>
+                    <hr style={{ margin: '20px 0', border: 'none', borderTop: '1px solid #eee' }} />
+                    <h4 style={{ margin: '0 0 15px 0', color: '#333' }}>Company Admin User</h4>
+                    <div className="row">
+                      <div className="col-6">
+                        <div className="form-group">
+                          <label className="form-label">Admin Name *</label>
+                          <input type="text" required value={form.admin_name} onChange={(e) => setForm({ ...form, admin_name: e.target.value })} className="form-control" placeholder="Enter admin name" />
+                        </div>
+                      </div>
+                      <div className="col-6">
+                        <div className="form-group">
+                          <label className="form-label">Admin Email *</label>
+                          <input type="email" required value={form.admin_email} onChange={(e) => setForm({ ...form, admin_email: e.target.value })} className="form-control" placeholder="admin@company.com" />
+                        </div>
+                      </div>
+                      <div className="col-12">
+                        <div className="form-group">
+                          <label className="form-label">Admin Password *</label>
+                          <input type="password" required value={form.admin_password} onChange={(e) => setForm({ ...form, admin_password: e.target.value })} className="form-control" placeholder="Enter admin password (min 8 characters)" />
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+                
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                   <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
                   <button type="submit" className="btn btn-primary">{modalMode === 'create' ? 'Create Company' : 'Update Company'}</button>

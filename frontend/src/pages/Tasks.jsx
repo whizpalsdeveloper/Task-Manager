@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getTasks, createTask, deleteTask, updateTask } from "../api/tasks";
+import { getTasks, createTask, deleteTask, updateTask, updateTaskStatus } from "../api/tasks";
 import { logout } from "../api/auth";
 
 export default function Tasks() {
@@ -170,7 +170,7 @@ export default function Tasks() {
         const dd = String(today.getDate()).padStart(2, "0");
         payload.due_date = `${yyyy}-${mm}-${dd}`;
       }
-      await updateTask(task.id, payload);
+      await updateTaskStatus(task.id, payload);
       await fetchTasks();
       alert("Task status updated successfully!");
     } catch (err) {

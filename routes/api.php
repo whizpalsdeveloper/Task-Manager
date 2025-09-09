@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Company\TaskController as CompanyTaskController;
+use App\Http\Controllers\Company\UserController as CompanyUserController;
 use App\Http\Controllers\User\TaskController as UserTaskController;
 
 /*
@@ -20,12 +21,15 @@ Route::post('/register', function (Request $request) {
         'name' => 'required|string|max:255',
         'email' => 'required|string|email|max:255|unique:users',
         'password' => 'required|string|min:8|confirmed', // expects password_confirmation field
+        'company_id' => 'nullable|exists:companies,id',
     ]);
 
     $user = User::create([
         'name' => $request->name,
         'email' => $request->email,
         'password' => Hash::make($request->password),
+        'role' => 'user', // Default role for new registrations
+        'company_id' => $request->company_id,
     ]);
 
     $token = $user->createToken('api-token')->plainTextToken;
@@ -71,6 +75,11 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
+// Public routes
+Route::get('/companies', function () {
+    $companies = \App\Models\Company::where('status', 'active')->select('id', 'name')->get();
+    return response()->json($companies);
+});
 
 // ✅ Admin Routes (protected by auth:sanctum and role:admin)
 Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
@@ -81,7 +90,8 @@ Route::middleware(['auth:sanctum', 'role:admin'])->prefix('admin')->name('admin.
 // ✅ Company Routes (protected by auth:sanctum and role:company)
 Route::middleware(['auth:sanctum', 'role:company'])->prefix('company')->name('company.')->group(function () {
     Route::apiResource('tasks', CompanyTaskController::class);
-    Route::get('users', [CompanyTaskController::class, 'users']);
+    Route::apiResource('users', CompanyUserController::class);
+    Route::get('users', [CompanyTaskController::class, 'users']); // Keep this for task assignment dropdown
 });
 
 // ✅ User Routes (protected by auth:sanctum and role:user)
