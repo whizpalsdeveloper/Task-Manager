@@ -41,7 +41,7 @@ class TaskController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'due_date' => 'nullable|date|after:now',
-            'priority' => 'required|in:low,medium,high',
+            'priority' => 'nullable|in:low,medium,high',
         ]);
 
         $task = Task::create([
@@ -51,7 +51,7 @@ class TaskController extends Controller
             'title' => $request->title,
             'description' => $request->description,
             'due_date' => $request->due_date,
-            'priority' => $request->priority,
+            'priority' => $request->priority??'medium',
             'status' => 'pending',
         ]);
 
@@ -108,7 +108,7 @@ class TaskController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'due_date' => 'nullable|date',
-            'priority' => 'required|in:low,medium,high',
+            'priority' => 'nullable|in:low,medium,high',
             'status' => 'required|in:pending,in-progress,completed',
             'notes' => 'nullable|string',
         ]);

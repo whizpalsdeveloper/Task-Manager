@@ -21,7 +21,7 @@ export default function App() {
 
   async function fetchUser() {
     try {
-      const response = await fetch("http://localhost:8000/api/user", {
+      const response = await fetch("http://task-manager.ddev.site/api/user", {
         headers: {
           Authorization: `Bearer ${token}`,
         },

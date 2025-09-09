@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { register } from "../api/auth";
+import api from "../api/axios";
 
 export default function Register({ setMode }) {
   const [form, setForm] = useState({
@@ -7,10 +8,29 @@ export default function Register({ setMode }) {
     email: "",
     password: "",
     password_confirmation: "",
+    company_id: "",
   });
+  const [companies, setCompanies] = useState([]);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingCompanies, setLoadingCompanies] = useState(true);
+
+  useEffect(() => {
+    fetchCompanies();
+  }, []);
+
+  async function fetchCompanies() {
+    try {
+      setLoadingCompanies(true);
+      const { data } = await api.get("/companies");
+      setCompanies(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Error fetching companies:", err);
+    } finally {
+      setLoadingCompanies(false);
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -75,6 +95,33 @@ export default function Register({ setMode }) {
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
               />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="company_id" className="form-label">Company (Optional)</label>
+              <select
+                id="company_id"
+                name="company_id"
+                className="form-control"
+                value={form.company_id}
+                onChange={(e) => setForm({ ...form, company_id: e.target.value })}
+                disabled={loadingCompanies}
+              >
+                <option value="">Select a company (optional)</option>
+                {companies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
+              {loadingCompanies && (
+                <div style={{ marginTop: '5px', fontSize: '12px', color: '#666' }}>
+                  Loading companies...
+                </div>
+              )}
+              <div style={{ marginTop: '5px', fontSize: '12px', color: '#666' }}>
+                You can join a company later or register without one.
+              </div>
             </div>
 
             <div className="form-group">

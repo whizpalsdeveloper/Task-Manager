@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getTasks, createTask, deleteTask, updateTask } from "../api/tasks";
+import { getTasks, createTask, deleteTask, updateTask, updateTaskStatus } from "../api/tasks";
 import { logout } from "../api/auth";
 
 export default function Tasks() {
@@ -118,13 +118,6 @@ export default function Tasks() {
     { key: "completed", label: "Completed" },
   ];
 
-  const tasksByStatus = useMemo(() => {
-    return statuses.reduce((acc, s) => {
-      acc[s.key] = tasks.filter((t) => t.status === s.key);
-      return acc;
-    }, {});
-  }, [tasks]);
-
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
       const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -133,6 +126,14 @@ export default function Tasks() {
       return matchesSearch && matchesStatus;
     });
   }, [tasks, searchTerm, statusFilter]);
+
+  const tasksByStatus = useMemo(() => {
+    const list = (searchTerm || statusFilter !== 'all') ? filteredTasks : tasks;
+    return statuses.reduce((acc, s) => {
+      acc[s.key] = list.filter((t) => t.status === s.key);
+      return acc;
+    }, {});
+  }, [tasks, filteredTasks, searchTerm, statusFilter]);
 
   function getStatusBadgeClass(status) {
     switch (status) {
@@ -169,7 +170,7 @@ export default function Tasks() {
         const dd = String(today.getDate()).padStart(2, "0");
         payload.due_date = `${yyyy}-${mm}-${dd}`;
       }
-      await updateTask(task.id, payload);
+      await updateTaskStatus(task.id, payload);
       await fetchTasks();
       alert("Task status updated successfully!");
     } catch (err) {
@@ -264,50 +265,53 @@ export default function Tasks() {
               )}
             </div>
           ) : (
-            <div className="row">
-              {filteredTasks.map((task) => (
-                <div key={task.id} className="col-4">
+            <div className="row" style={{ alignItems: 'stretch' }}>
+              {statuses.map((s) => (
+                <div key={s.key} className="col-4"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    const json = e.dataTransfer.getData('application/json');
+                    if (!json) return;
+                    const dropped = JSON.parse(json);
+                    quickChangeStatus(dropped, s.key);
+                  }}
+                >
                   <div className="card" style={{ height: '100%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
-                      <h4 style={{ margin: 0, flex: 1 }}>{task.title}</h4>
-                      <span className={`badge ${getStatusBadgeClass(task.status)}`}>
-                        {task.status}
-                      </span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <h3 style={{ margin: 0 }}>{s.label}</h3>
+                      <span className="badge badge-info">{tasksByStatus[s.key]?.length || 0}</span>
                     </div>
-                    
-                    <p style={{ color: '#666', marginBottom: '15px', minHeight: '40px' }}>
-                      {task.description || 'No description'}
-                    </p>
-                    
-                    {task.due_date && (
-                      <p style={{ fontSize: '12px', color: '#666', marginBottom: '15px' }}>
-                        Due: {new Date(task.due_date).toLocaleDateString()}
-                      </p>
-                    )}
-                    
-                    <div style={{ display: 'flex', gap: '5px', marginTop: 'auto' }}>
-                      <button
-                        onClick={() => openViewModal(task)}
-                        className="btn btn-secondary"
-                        style={{ flex: 1, fontSize: '12px', padding: '5px 10px' }}
+                    {(tasksByStatus[s.key] || []).map((task) => (
+                      <div key={task.id} className="card" style={{ marginBottom: '10px' }}
+                           draggable
+                           onDragStart={(e) => {
+                             e.dataTransfer.setData('application/json', JSON.stringify(task));
+                           }}
                       >
-                        View
-                      </button>
-                      <button
-                        onClick={() => openEditModal(task)}
-                        className="btn btn-primary"
-                        style={{ flex: 1, fontSize: '12px', padding: '5px 10px' }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(task.id)}
-                        className="btn btn-danger"
-                        style={{ fontSize: '12px', padding: '5px 10px' }}
-                      >
-                        Delete
-                      </button>
-                    </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                          <button onClick={() => openViewModal(task)} className="btn" style={{ background:'none', padding:0, color:'#007bff' }}>{task.title}</button>
+                          <span className={`badge ${getStatusBadgeClass(task.status)}`}>{task.status}</span>
+                        </div>
+                        {task.description ? (
+                          <p style={{ color: '#666', marginBottom: '8px' }}>{task.description}</p>
+                        ) : null}
+                        {task.due_date ? (
+                          <p style={{ fontSize: '12px', color: '#666', marginBottom: '10px' }}>Due: {formatDateForInput(task.due_date)}</p>
+                        ) : null}
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <select className="form-control" value={task.status} onChange={(e) => quickChangeStatus(task, e.target.value)}>
+                            {statuses.map((opt) => (
+                              <option key={opt.key} value={opt.key}>{opt.label}</option>
+                            ))}
+                          </select>
+                          <button onClick={() => openEditModal(task)} className="btn btn-primary">Edit</button>
+                          <button onClick={() => handleDelete(task.id)} className="btn btn-danger">Delete</button>
+                        </div>
+                      </div>
+                    ))}
+                    {(tasksByStatus[s.key] || []).length === 0 ? (
+                      <div style={{ color: '#666', fontSize: '12px' }}>No tasks</div>
+                    ) : null}
                   </div>
                 </div>
               ))}

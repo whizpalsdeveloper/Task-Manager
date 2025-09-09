@@ -3,7 +3,7 @@ import axios from "axios";
 const resolvedBaseUrl =
   (typeof window !== "undefined" && window?.ENV?.VITE_API_BASE_URL) ||
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
-  "http://localhost:8000/api";
+  "http://task-manager.ddev.site/api";
 
 const api = axios.create({
   baseURL: resolvedBaseUrl,
